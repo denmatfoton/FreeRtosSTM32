@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "main.h"
+#include "text_output.h"
 #include "stm32f3xx_hal.h"
 #include "events_handler.h"
 #include "lsm303dlhc_driver.h"
@@ -67,7 +68,7 @@ static void configure_compas(void)
 {
     SetHandleI2C(&hi2c1);
     
-    printf("configure accelerometer\n");
+    UART_printf("configure accelerometer\n");
     USER_ASSERT(SetMode(POWER_DOWN) == MEMS_SUCCESS);
     USER_ASSERT(SetMode(NORMAL) == MEMS_SUCCESS);
     USER_ASSERT(SetODR(ODR_25Hz) == MEMS_SUCCESS);
@@ -86,7 +87,6 @@ static void configure_compas(void)
     USER_ASSERT(SetInt1Threshold(10) == MEMS_SUCCESS);         // 10 * 15.625mg
 }
 
-//volatile int releaseCompas = 3;
 
 static void compas_task(void const* param)
 {
@@ -96,14 +96,9 @@ static void compas_task(void const* param)
     {
         osSemaphoreWait(compasSemaphore, osWaitForever);
         
-        //if (releaseCompas > 0)
-        {
-            USER_ASSERT(GetAccAxesRaw(&receivedAxes) == MEMS_SUCCESS);
-            printf("x: %d, y: %d, z: %d\n",
-                receivedAxes.AXIS_X, receivedAxes.AXIS_Y, receivedAxes.AXIS_Z);
-        }
-        /*printf("work");
-        osDelay(1000);*/
+        USER_ASSERT(GetAccAxesRaw(&receivedAxes) == MEMS_SUCCESS);
+        UART_printf("x: %d, y: %d, z: %d\n",
+            receivedAxes.AXIS_X, receivedAxes.AXIS_Y, receivedAxes.AXIS_Z);
     }
 }
 
@@ -111,7 +106,6 @@ static void compas_task(void const* param)
 void EXTI4_IRQHandler(void)
 {
     osSemaphoreRelease(compasSemaphore);
-    //printf("EXTI4");
     
     HAL_NVIC_ClearPendingIRQ(EXTI4_IRQn);
     HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_4);
@@ -119,12 +113,7 @@ void EXTI4_IRQHandler(void)
 
 void EXTI0_IRQHandler(void)
 {
-    //printf("s\n");
-    
-    //xSemaphoreGiveFromISR( compasSemaphore, NULL );
     osSemaphoreRelease(compasSemaphore);
-    //printf("EXTI0\n");
-    //releaseCompas++;
     
     HAL_NVIC_ClearPendingIRQ(EXTI0_IRQn);
     HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_0);

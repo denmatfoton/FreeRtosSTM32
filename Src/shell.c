@@ -91,7 +91,7 @@ STATIC_NO_INLINE void _Shell_History_SetCmdline()
 {
     strncpy(pShell->mCommandString, pShell->cmdHistory[pShell->cmdHistoryRecall].cmdLine, SHELL_HISTORY_CMDLINE_LEN);
     pShell->pCmd = strlen(pShell->mCommandString);
-    printf("%s", pShell->mCommandString);
+    Shell_Printf("%s", pShell->mCommandString);
 }
 
 
@@ -210,7 +210,7 @@ int Shell_getALine(char c)
             *(cp + pShell->pCmd) = c;
             pShell->pCmd++;
         }
-        printf("%c", c);
+        Shell_Printf("%c", c);
     }
 
     if (c != '\n')  // not end of line
@@ -688,7 +688,7 @@ void Shell_Delete_Argv(Shell* pShell)
 */
 void Shell_prompt(void)
 {
-    printf("=>");
+    Shell_Printf("=>");
 }
 
 

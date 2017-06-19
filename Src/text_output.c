@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <ctype.h>
+#include <stdarg.h>
 #include "shell.h"
 #include "cmsis_os.h"
 #include "text_output.h"
@@ -7,6 +8,9 @@
 
 /* Private variables ---------------------------------------------------------*/
 UART_HandleTypeDef shellUart;
+DMA_HandleTypeDef hdma_usart2_tx;
+
+
 
 /**@struct __FILE
 * @brief descriptin for __stdout and stdin
@@ -42,12 +46,6 @@ __STATIC_INLINE void Serial_SendChar(uint8_t ch)
     HAL_UART_Transmit(&shellUart, (uint8_t*)&(ch), 1, HAL_MAX_DELAY);
 }
 
-__STATIC_INLINE uint8_t Serial_WaitForChar()
-{
-    uint8_t ch;
-    HAL_UART_Receive(&shellUart, (uint8_t*)&(ch), 1, HAL_MAX_DELAY);
-    return ch;
-}
 
 /**@brief   Retargeted I/O fputc
 *
@@ -58,11 +56,9 @@ __STATIC_INLINE uint8_t Serial_WaitForChar()
 */
 int fputc(int ch, FILE *f)
 {
-    ///own implementation of fputc here
-
-    ///write a character to UART
+    //write a character to UART
     Serial_SendChar(ch);
-    // convert '\r' to \n\r
+    // convert '\n' to \n\r
     if (ch=='\n')
     {
         Serial_SendChar('\r');
@@ -71,96 +67,33 @@ int fputc(int ch, FILE *f)
     return ch;
 }
 
-char _getkey(void)
-{
-    uint8_t tempch;
-    /// if we just backspaced, then return the backspaced character
-    /// otherwise output the next character in the stream
-    if (backspace_called == 1)
-    {
-        backspace_called = 0;
-        return last_char_read;
-    }
 
-    tempch = Serial_WaitForChar();
-    if(tempch == '\r')
+int UART_printf(char *format, ...)
+{
+    static char outputStr[MAX_UART_STR_SIZE];
+    
+    if (hdma_usart2_tx.State == HAL_DMA_STATE_READY)
     {
-        tempch = '\n';
-    }
+        va_list aptr;
+        int ret;
+
+        va_start(aptr, format);
+        ret = vsnprintf(outputStr, MAX_UART_STR_SIZE, format, aptr);
+        va_end(aptr);
         
-    last_char_read = (int)tempch;       /// backspace must return this value when it gets called
-    return tempch;
-}
-
-int fgetc(FILE *f)
-{
-    uint8_t tempch;
-    /// if we just backspaced, then return the backspaced character
-    /// otherwise output the next character in the stream
-    if (backspace_called == 1)
-    {
-      backspace_called = 0;
-      return last_char_read;
+        if (ret < 0)
+        {
+            return ret;
+        }
+        
+        HAL_UART_Transmit_DMA(&shellUart, (uint8_t*)outputStr, ret);
+        
+        return ret;
     }
     
-    tempch = Serial_WaitForChar();
-    // do local echo for gets(), fgets(), scanf()
-    if(tempch=='\r')
-    {
-        tempch = '\n';
-    }
-
-    if (isprint(tempch) || tempch=='\n')
-    {
-        Serial_SendChar(tempch);
-    }
-    else
-    {
-        Serial_SendChar('.');
-    }
-
-    last_char_read = (int)tempch;       /// backspace must return this value when it gets called
-    return tempch;
+    return -1;
 }
 
-/** @brief Emergency output over UART
- *
- * @param[in] ch character to be output to UART
- */
-void _ttywrch(int ch)
-{
-    char tempch = ch;
-    Serial_SendChar( tempch );
-}
-
-/*
-#define SHELL_UART_FIFO_SIZE     10
-#define FIFO_INCR(x)             (x) = (x + 1) % SHELL_UART_FIFO_SIZE;
-
-typedef struct
-{
-    uint8_t uart_fifo_buff[SHELL_UART_FIFO_SIZE];
-    uint8_t countUnread;
-    uint8_t writePos;
-} UartFifo_t;
-
-static UartFifo_t uart_fifo;
-
-__STATIC_INLINE void putToFifo(uint8_t ch)
-{
-    uart_fifo.uart_fifo_buff[uart_fifo.writePos] = ch;
-    if (uart_fifo.countUnread < SHELL_UART_FIFO_SIZE)
-        uart_fifo.countUnread++;
-    FIFO_INCR(uart_fifo.writePos);
-}
-
-__STATIC_INLINE uint8_t getFromFifo(void)
-{
-    uint8_t readPos = SHELL_UART_FIFO_SIZE + uart_fifo.writePos + uart_fifo.countUnread;
-    if (uart_fifo.countUnread > 0)
-        uart_fifo.countUnread--;
-    return uart_fifo.uart_fifo_buff[readPos];
-}*/
 
 osSemaphoreId  shellSemaphore;
 
@@ -213,5 +146,13 @@ void USART2_IRQHandler(void)
 {
     HAL_UART_IRQHandler(&shellUart);
     
-    osSemaphoreRelease(shellSemaphore);
+    if (shellUart.RxState == HAL_UART_STATE_READY)
+    {
+        osSemaphoreRelease(shellSemaphore);
+    }
+}
+
+void DMA1_Channel7_IRQHandler(void)
+{
+    HAL_DMA_IRQHandler(&hdma_usart2_tx);
 }

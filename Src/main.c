@@ -41,7 +41,7 @@ int main(void)
     
     init_compas();
 
-    printf("start\n");
+    UART_printf("start\n");
     
     /* Start scheduler */
     osKernelStart();
@@ -175,7 +175,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
-  
 
   /*Configure GPIO pin : B1_Pin */
   GPIO_InitStruct.Pin = B1_Pin;
@@ -211,7 +210,7 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Alternate = GPIO_AF4_I2C1;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
   
-  //HAL_NVIC_SetPriorityGrouping(NVIC_PRIORITYGROUP_4);
+  
   HAL_NVIC_SetPriority(EXTI0_IRQn, 5, 0);
   HAL_NVIC_EnableIRQ(EXTI0_IRQn);
 }
@@ -249,7 +248,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
   */
 void _Error_Handler(char* file, int line)
 {
-    printf("ERROR OCCURED: %s, line %d", file, line);
+    UART_printf("ERROR OCCURED: %s, line %d", file, line);
     while(1) 
     {
     }
