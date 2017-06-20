@@ -61,7 +61,8 @@ STATIC_NO_INLINE void _Shell_DoBackspace(INT16S count)
     {
         if (pShell->pCmd > 0)
         {
-            fputs("\b \b",stdout);
+            //fputs("\b \b", stdout);
+            Shell_Printf("\b \b");
             pShell->pCmd--;
         }
     }
@@ -718,7 +719,7 @@ void Shell_PerformCommandLine(void)
 {
     char*       pCommand = 0;
 
-    Shell_Printf("\r");    // '\n' echoed in low level already.
+    //Shell_Printf("\r");    // '\n' echoed in low level already.
 
     strToLower(pShell->mCommandString);
 

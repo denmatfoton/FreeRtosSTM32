@@ -68,7 +68,7 @@ static void configure_compas(void)
 {
     SetHandleI2C(&hi2c1);
     
-    UART_printf("configure accelerometer\n");
+    UART_printf_wait("configure accelerometer\n");
     USER_ASSERT(SetMode(POWER_DOWN) == MEMS_SUCCESS);
     USER_ASSERT(SetMode(NORMAL) == MEMS_SUCCESS);
     USER_ASSERT(SetODR(ODR_25Hz) == MEMS_SUCCESS);
@@ -97,7 +97,7 @@ static void compas_task(void const* param)
         osSemaphoreWait(compasSemaphore, osWaitForever);
         
         USER_ASSERT(GetAccAxesRaw(&receivedAxes) == MEMS_SUCCESS);
-        UART_printf("x: %d, y: %d, z: %d\n",
+        UART_printf_wait("x: %d, y: %d, z: %d\n",
             receivedAxes.AXIS_X, receivedAxes.AXIS_Y, receivedAxes.AXIS_Z);
     }
 }

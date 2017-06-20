@@ -36,9 +36,10 @@
 **********************************************************************************/
 #include <stdio.h>
 #include "main.h"
+#include "text_output.h"
 
 /*****************  MACROS *** START ******************************************/
-#define Shell_Printf    printf
+#define Shell_Printf    UART_printf_wait
 
 /*****************  MACROS *** END   ******************************************/
 

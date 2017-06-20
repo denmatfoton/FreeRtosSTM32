@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <ctype.h>
+#include <string.h>
 #include <stdarg.h>
 #include "shell.h"
 #include "cmsis_os.h"
@@ -43,7 +44,7 @@ int __backspace(FILE *f)
 
 __STATIC_INLINE void Serial_SendChar(uint8_t ch)
 {
-    HAL_UART_Transmit(&shellUart, (uint8_t*)&(ch), 1, HAL_MAX_DELAY);
+    //HAL_UART_Transmit(&shellUart, (uint8_t*)&(ch), 1, HAL_MAX_DELAY);
 }
 
 
@@ -67,15 +68,23 @@ int fputc(int ch, FILE *f)
     return ch;
 }
 
+osSemaphoreId  printfSemaphore;
+osSemaphoreId  shellSemaphore;
 
-int UART_printf(char *format, ...)
+
+int _UART_printf(uint32_t millis, char *format, ...)
 {
     static char outputStr[MAX_UART_STR_SIZE];
+    int ret;
     
-    if (hdma_usart2_tx.State == HAL_DMA_STATE_READY)
+    ret = osSemaphoreWait(printfSemaphore, millis);
+    
+    if (ret == osOK)
     {
         va_list aptr;
-        int ret;
+        int i;
+        char *pos;
+        uint32_t endPos; 
 
         va_start(aptr, format);
         ret = vsnprintf(outputStr, MAX_UART_STR_SIZE, format, aptr);
@@ -86,16 +95,30 @@ int UART_printf(char *format, ...)
             return ret;
         }
         
-        HAL_UART_Transmit_DMA(&shellUart, (uint8_t*)outputStr, ret);
+        endPos = ret;
+        pos = outputStr;
+        for (i = 0; i < ret && endPos < MAX_UART_STR_SIZE; ++i)
+        {
+            if (*(pos++) == '\n')
+            {
+                if (i + 1 != ret)
+                {
+                    memmove(pos + 1, pos, ret - i);
+                }
+                *(pos++) = '\r';
+                endPos++;
+            }
+        }
         
-        return ret;
+        
+        HAL_UART_Transmit_DMA(&shellUart, (uint8_t*)outputStr, endPos);
+        
+        return endPos;
     }
     
     return -1;
 }
 
-
-osSemaphoreId  shellSemaphore;
 
 static void ShellTask(void const* param)
 {
@@ -137,6 +160,9 @@ void Shell_UART_Init(void)
     osSemaphoreDef(shellSemaphore);
     shellSemaphore = osSemaphoreCreate(osSemaphore(shellSemaphore), 1);
     
+    osSemaphoreDef(printfSemaphore);
+    printfSemaphore = osSemaphoreCreate(osSemaphore(printfSemaphore), 1);
+    
     osThreadDef(ShellTask, ShellTask, osPriorityLow, 0, 128);
     osThreadCreate(osThread(ShellTask), NULL);
 }
@@ -144,9 +170,12 @@ void Shell_UART_Init(void)
 
 void USART2_IRQHandler(void)
 {
+    HAL_UART_StateTypeDef oldRxState = shellUart.RxState;
+    
     HAL_UART_IRQHandler(&shellUart);
     
-    if (shellUart.RxState == HAL_UART_STATE_READY)
+    if (shellUart.RxState == HAL_UART_STATE_READY &&
+        oldRxState != shellUart.RxState)
     {
         osSemaphoreRelease(shellSemaphore);
     }
@@ -155,4 +184,9 @@ void USART2_IRQHandler(void)
 void DMA1_Channel7_IRQHandler(void)
 {
     HAL_DMA_IRQHandler(&hdma_usart2_tx);
+    
+    if (hdma_usart2_tx.State == HAL_DMA_STATE_READY)
+    {
+        osSemaphoreRelease(printfSemaphore);
+    }
 }

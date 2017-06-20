@@ -41,10 +41,12 @@ int main(void)
     
     init_compas();
 
-    UART_printf("start\n");
-    
     /* Start scheduler */
     osKernelStart();
+    
+    //UART_printf_wait("start\n");
+    
+    while(1);
 }
 
 /** System Clock Configuration
