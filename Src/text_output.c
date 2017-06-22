@@ -4,6 +4,7 @@
 #include <stdarg.h>
 #include "shell.h"
 #include "cmsis_os.h"
+#include "led_output.h"
 #include "text_output.h"
 #include "stm32f3xx_hal.h"
 
@@ -71,12 +72,18 @@ int fputc(int ch, FILE *f)
 osSemaphoreId  printfSemaphore;
 osSemaphoreId  shellSemaphore;
 
+uint8_t printf_count = 0;
+uint8_t dma_ready_count = 0;
+#define TRACK_STATE  Set_LEDs((dma_ready_count << 4) & printf_count);
+
 
 int _UART_printf(uint32_t millis, char *format, ...)
 {
     static char outputStr[MAX_UART_STR_SIZE];
     int ret;
     
+    printf_count++;
+    TRACK_STATE
     ret = osSemaphoreWait(printfSemaphore, millis);
     
     if (ret == osOK)
@@ -109,7 +116,6 @@ int _UART_printf(uint32_t millis, char *format, ...)
                 endPos++;
             }
         }
-        
         
         HAL_UART_Transmit_DMA(&shellUart, (uint8_t*)outputStr, endPos);
         
@@ -187,6 +193,8 @@ void DMA1_Channel7_IRQHandler(void)
     
     if (hdma_usart2_tx.State == HAL_DMA_STATE_READY)
     {
+        dma_ready_count++;
+        TRACK_STATE
         osSemaphoreRelease(printfSemaphore);
     }
 }

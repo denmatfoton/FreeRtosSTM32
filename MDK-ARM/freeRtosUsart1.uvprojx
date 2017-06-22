@@ -594,6 +594,16 @@
               <FileType>1</FileType>
               <FilePath>..\Src\shell_cmd.c</FilePath>
             </File>
+            <File>
+              <FileName>led_output.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\Src\led_output.c</FilePath>
+            </File>
+            <File>
+              <FileName>led_output.h</FileName>
+              <FileType>5</FileType>
+              <FilePath>..\Inc\led_output.h</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
