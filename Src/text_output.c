@@ -72,18 +72,12 @@ int fputc(int ch, FILE *f)
 osSemaphoreId  printfSemaphore;
 osSemaphoreId  shellSemaphore;
 
-uint8_t printf_count = 0;
-uint8_t dma_ready_count = 0;
-#define TRACK_STATE  Set_LEDs((dma_ready_count << 4) & printf_count);
-
 
 int _UART_printf(uint32_t millis, char *format, ...)
 {
     static char outputStr[MAX_UART_STR_SIZE];
     int ret;
     
-    printf_count++;
-    TRACK_STATE
     ret = osSemaphoreWait(printfSemaphore, millis);
     
     if (ret == osOK)
@@ -136,7 +130,8 @@ static void ShellTask(void const* param)
     {
         HAL_UART_Receive_IT(&shellUart, (uint8_t*)&(ch), 1);
         osSemaphoreWait(shellSemaphore, osWaitForever);
-        if(ch == '\r')
+        
+        if (ch == '\r')
         {
             ch = '\n';
         }
@@ -177,6 +172,7 @@ void Shell_UART_Init(void)
 void USART2_IRQHandler(void)
 {
     HAL_UART_StateTypeDef oldRxState = shellUart.RxState;
+    HAL_UART_StateTypeDef oldTxState = shellUart.gState;
     
     HAL_UART_IRQHandler(&shellUart);
     
@@ -185,16 +181,21 @@ void USART2_IRQHandler(void)
     {
         osSemaphoreRelease(shellSemaphore);
     }
+        
+    if (shellUart.gState == HAL_UART_STATE_READY &&
+        oldTxState != shellUart.gState)
+    {
+        osSemaphoreRelease(printfSemaphore);
+    }
 }
 
 void DMA1_Channel7_IRQHandler(void)
 {
     HAL_DMA_IRQHandler(&hdma_usart2_tx);
     
+    
     if (hdma_usart2_tx.State == HAL_DMA_STATE_READY)
     {
-        dma_ready_count++;
-        TRACK_STATE
-        osSemaphoreRelease(printfSemaphore);
+        //osSemaphoreRelease(printfSemaphore);
     }
 }

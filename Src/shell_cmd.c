@@ -2,16 +2,19 @@
 #include "shell.h"
 #include "cmsis_os.h"
 #include "stm32f3xx_hal.h"
+#include "lsm303dlhc_driver.h"
 
 
 INT32U Shell_cmdHelp(Shell *ps, int *idx, char *cmd);
 INT32U Shell_showAccel(Shell *ps, int *idx, char *cmd);
+INT32U Shell_setAccelParameters(Shell *ps, int *idx, char *cmd);
 
 
 const CmdPairStruct CmdPairs[] =
-{
-    {"help",            "show available commands",                                          Shell_cmdHelp},
-    {"accel",           "show accelerometer state",                                         Shell_showAccel},
+{                                                                    
+    {"help",            "show available commands",                            Shell_cmdHelp},
+    {"accel",           "show accelerometer state",                           Shell_showAccel},
+    {"apar",            "set accelerometer params",                           Shell_setAccelParameters},
 
     {NULL, NULL, NULL}        // terminator
 };
@@ -47,4 +50,29 @@ INT32U Shell_showAccel(Shell *ps, int *idx, char *cmd)
     
     return ERR_NO_ERROR;
 }
+
+
+INT32U Shell_setAccelParameters(Shell *ps, int *idx, char *cmd)
+{
+    int param = ps->mIntArgV[0];
+    int value = ps->mIntArgV[1];
+        
+    switch(param)
+    {
+        case 0:
+            SetHPFMode(value);
+            break;
+        case 1:
+            SetHPFCutOFF(value);
+            break;
+        case 2:
+            SetFilterDataSel(value);
+            break;
+        default:
+            break;
+    }
+    
+    return ERR_NO_ERROR;
+}
+
 

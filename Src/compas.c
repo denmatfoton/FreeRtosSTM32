@@ -1,9 +1,11 @@
+#include <math.h>
 #include <stdio.h>
 #include "main.h"
 #include "text_output.h"
 #include "stm32f3xx_hal.h"
 #include "events_handler.h"
 #include "lsm303dlhc_driver.h"
+#include "led_output.h"
 
 
 static I2C_HandleTypeDef hi2c1;
@@ -68,7 +70,7 @@ static void configure_compas(void)
 {
     SetHandleI2C(&hi2c1);
     
-    UART_printf_wait("configure accelerometer\n");
+    //UART_printf_wait("configure accelerometer\n");
     USER_ASSERT(SetMode(POWER_DOWN) == MEMS_SUCCESS);
     USER_ASSERT(SetMode(NORMAL) == MEMS_SUCCESS);
     USER_ASSERT(SetODR(ODR_25Hz) == MEMS_SUCCESS);
@@ -76,7 +78,7 @@ static void configure_compas(void)
     USER_ASSERT(SetFullScale(FULLSCALE_2) == MEMS_SUCCESS);     // Full-scale +-2g
     USER_ASSERT(SetHPFMode(HPM_NORMAL_MODE) == MEMS_SUCCESS);   // High pass filter mode selection
     USER_ASSERT(SetHPFCutOFF(HPFCF_2) == MEMS_SUCCESS);         // High pass filter cut-off frequency selection
-    USER_ASSERT(SetFilterDataSel(MEMS_ENABLE) == MEMS_SUCCESS); // enable filter
+    USER_ASSERT(SetFilterDataSel(MEMS_DISABLE) == MEMS_SUCCESS); // enable filter
     USER_ASSERT(SetBLE(BLE_LSB) == MEMS_SUCCESS); // endian
     USER_ASSERT(SetInt1Pin(1 << I1_AOI1) == MEMS_SUCCESS);     // enable AOI1 interrupt on INT1
     USER_ASSERT(Int1LatchEnable(MEMS_ENABLE) == MEMS_SUCCESS); // If there is an interrupt from AOI1, INT1 pin will go high from
@@ -88,17 +90,45 @@ static void configure_compas(void)
 }
 
 
+#define PI                 3.1415926
+#define DIR_TRESHOLD       200
+static uint8_t calcAccelDirection(int16_t x, int16_t y)
+{
+    uint8_t value;
+    float angel;
+    float sum = (int32_t)x * x + (int32_t)y * y;
+    
+    if (sum < DIR_TRESHOLD)
+    {
+        return 0;
+    }
+    
+    angel = PI - atan2(y, x);
+    value = (uint8_t)floor(4 * angel / PI + 0.5);
+    value %= 8;
+    
+    return 1 << value;
+}
+
+
 static void compas_task(void const* param)
 {
     static AccAxesRaw_t receivedAxes;
+    uint8_t ledValue;
     
     while(1)
     {
-        osSemaphoreWait(compasSemaphore, osWaitForever);
+        //osSemaphoreWait(compasSemaphore, osWaitForever);
         
         USER_ASSERT(GetAccAxesRaw(&receivedAxes) == MEMS_SUCCESS);
-        UART_printf_wait("x: %d, y: %d, z: %d\n",
-            receivedAxes.AXIS_X, receivedAxes.AXIS_Y, receivedAxes.AXIS_Z);
+        ledValue = calcAccelDirection(receivedAxes.AXIS_X, receivedAxes.AXIS_Y);
+        
+        Set_LEDs(ledValue);
+        
+        osDelay(50);
+        
+        /*UART_printf_wait("x: %d, y: %d, z: %d\n",
+            receivedAxes.AXIS_X, receivedAxes.AXIS_Y, receivedAxes.AXIS_Z);*/
     }
 }
 

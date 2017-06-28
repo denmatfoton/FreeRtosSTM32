@@ -4,6 +4,7 @@
 #include "cmsis_os.h"
 #include "text_output.h"
 #include "compas.h"
+#include "led_output.h"
 #include "shell.h"
 
 
@@ -40,6 +41,9 @@ int main(void)
     defaultTaskHandle = osThreadCreate(osThread(defaultTask), NULL);
     
     init_compas();
+    //Set_LEDs(0x44);
+    //UART_printf_wait("f");
+    //UART_printf_wait("f");
 
     /* Start scheduler */
     osKernelStart();
@@ -159,7 +163,7 @@ static void MX_GPIO_Init(void)
                           |LD6_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
 
